@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Apex | Cop Chase</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-container">
+        <div class="hud-element">HP: <span id="hp-display">100</span>%</div>
+        <div class="hud-element">SPEED: <span id="speed-display">0</span> MPH</div>
+        <div class="hud-element">SURVIVED: <span id="time-display">0</span>s</div>
+    </div>
+    
+    <div id="start-screen">
+        <h1 style="color: #ff0055;">PROJECT APEX: COP CHASE</h1>
+        <p>Outrun the police! Avoid getting hit or your car will fall apart. 100 HP.</p>
+        <p style="font-size: 14px; color: #00f3ff;">WASD/Arrows to Drive | SPACEBAR to Drift</p>
+        <button id="start-btn">EVADE THE COPS</button>
+    </div>
+
+    <div id="game-over-screen" style="display: none;">
+        <h1 style="color: #ff0055;">BUSTED!</h1>
+        <p>Your car was completely wrecked.</p>
+        <button id="restart-btn" onclick="location.reload()">TRY AGAIN</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <script src="game.js"></script>
+</body>
+</html>
