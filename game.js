@@ -16,23 +16,22 @@ let driftCombo = 0;
 let shakeTimer = 0;
 let gameInterval;
 
-// Player Car Configuration
+// Detailed Player Car
 const player = {
     x: 0,
     y: 0,
-    width: 40,
-    height: 80,
+    width: 44,
+    height: 88,
     angle: 0,
     velocity: { x: 0, y: 0 },
-    maxSpeed: 14,
-    acceleration: 0.16,
-    braking: 0.32,
+    maxSpeed: 15,
+    acceleration: 0.17,
+    braking: 0.35,
     friction: 0.975,
     grip: 0.22,
     hp: 100,
     maxHp: 100,
-    armorLevel: 0,
-    speedLevel: 0
+    armorLevel: 0
 };
 
 let cops = [];
@@ -68,12 +67,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
             document.getElementById('time-display').innerText = survivalTime + "s";
             document.getElementById('hp-display').innerText = player.hp + "%";
 
-            // Spawn elements infinitely around player
             if (survivalTime % 4 === 0) {
                 let angle = Math.random() * Math.PI * 2;
                 let dist = 900 + Math.random() * 400;
                 let typeRand = Math.random();
-                let type = typeRand < 0.3 ? 'heavy' : (typeRand < 0.6 ? 'fast' : 'cruiser');
+                let type = typeRand < 0.35 ? 'heavy' : (typeRand < 0.65 ? 'fast' : 'cruiser');
                 cops.push(createCop(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, type));
             }
             if (survivalTime % 12 === 0 && survivalTime > 15) {
@@ -81,7 +79,6 @@ document.getElementById('start-btn').addEventListener('click', () => {
                 helicopters.push({
                     x: player.x + Math.cos(angle) * 1000,
                     y: player.y + Math.sin(angle) * 1000,
-                    vx: 0, vy: 0,
                     attackTimer: 0
                 });
             }
@@ -95,13 +92,13 @@ function createCop(x, y, type) {
     let isHeavy = type === 'heavy';
     return {
         x: x, y: y,
-        width: isHeavy ? 56 : 40,
-        height: isHeavy ? 100 : 80,
+        width: isHeavy ? 60 : 44,
+        height: isHeavy ? 108 : 88,
         angle: 0,
         velocity: { x: 0, y: 0 },
         type: type,
-        maxSpeed: type === 'fast' ? 11 : (isHeavy ? 7 : 9),
-        acceleration: isHeavy ? 0.1 : 0.18,
+        maxSpeed: type === 'fast' ? 12 : (isHeavy ? 7.5 : 9.5),
+        acceleration: isHeavy ? 0.1 : 0.19,
         grip: isHeavy ? 0.26 : 0.18
     };
 }
@@ -130,19 +127,19 @@ function spawnPowerup() {
 
 function dropOilSlick() {
     oilSlicks.push({ x: player.x, y: player.y, radius: 40 });
-    addFloatingText("- Oil Dropped -", player.x, player.y, "#00f3ff");
+    addFloatingText("- Oil Slick Deployed -", player.x, player.y, "#00f3ff");
 }
 
 function spawnDebris(x, y, color = '#ff4500') {
-    shakeTimer = 12; // Trigger screen shake
-    for (let i = 0; i < 10; i++) {
+    shakeTimer = 12;
+    for (let i = 0; i < 12; i++) {
         debris.push({
             x: x, y: y,
-            vx: (Math.random() - 0.5) * 18,
-            vy: (Math.random() - 0.5) * 18,
-            size: 5 + Math.random() * 9,
+            vx: (Math.random() - 0.5) * 20,
+            vy: (Math.random() - 0.5) * 20,
+            size: 4 + Math.random() * 8,
             color: color,
-            life: 70
+            life: 60
         });
     }
 }
@@ -171,10 +168,10 @@ function updateVehiclePhysics(vehicle, input) {
     forwardSpeed = Math.max(-vehicle.maxSpeed * 0.4, Math.min(vehicle.maxSpeed, forwardSpeed));
 
     if (input.turningLeft && Math.abs(forwardSpeed) > 0.4) {
-        vehicle.angle -= 0.065 * (forwardSpeed / vehicle.maxSpeed);
+        vehicle.angle -= 0.068 * (forwardSpeed / vehicle.maxSpeed);
     }
     if (input.turningRight && Math.abs(forwardSpeed) > 0.4) {
-        vehicle.angle += 0.065 * (forwardSpeed / vehicle.maxSpeed);
+        vehicle.angle += 0.068 * (forwardSpeed / vehicle.maxSpeed);
     }
 
     let currentGrip = input.handbraking ? vehicle.grip * 0.25 : vehicle.grip;
@@ -186,7 +183,6 @@ function updateVehiclePhysics(vehicle, input) {
     vehicle.x += vehicle.velocity.x;
     vehicle.y += vehicle.velocity.y;
 
-    // Drift Detection for Player
     if (vehicle === player) {
         if (Math.abs(lateralSpeed) > 3.2 && Math.abs(forwardSpeed) > 4) {
             driftCombo++;
@@ -220,7 +216,6 @@ function update() {
 
     updateVehiclePhysics(player, pInput);
 
-    // Powerups Collection
     powerups.forEach((p, index) => {
         if (Math.hypot(player.x - p.x, player.y - p.y) < 45) {
             if (p.type === 'wrench') {
@@ -239,7 +234,6 @@ function update() {
         }
     });
 
-    // Roadblock collision
     roadblocks.forEach((rb, index) => {
         if (Math.hypot(player.x - rb.x, player.y - rb.y) < 65) {
             let dmg = 20 - (player.armorLevel * 3);
@@ -254,7 +248,6 @@ function update() {
         }
     });
 
-    // Cops AI & Collision
     cops.forEach(cop => {
         let hitOil = oilSlicks.findIndex(o => Math.hypot(cop.x - o.x, cop.y - o.y) < o.radius + 15);
         if (hitOil !== -1) {
@@ -300,7 +293,6 @@ function update() {
         }
     });
 
-    // Helicopter Pursuit AI
     helicopters.forEach(heli => {
         let hdx = player.x - heli.x;
         let hdy = player.y - heli.y;
@@ -310,7 +302,7 @@ function update() {
         heli.attackTimer++;
         if (heli.attackTimer > 180) {
             heli.attackTimer = 0;
-            roadblocks.push({ x: heli.x, y: heli.y, width: 140, height: 20, angle: Math.random() * Math.PI });
+            roadblocks.push({ x: heli.x, y: heli.y, width: 150, height: 22, angle: Math.random() * Math.PI });
             addFloatingText("HELI DROPPED SPIKES!", heli.x, heli.y, "#ff4500");
         }
     });
@@ -337,10 +329,102 @@ function triggerGameOver() {
     document.getElementById('game-over-screen').style.display = 'flex';
 }
 
+// Custom High-Detail Procedural Car Renderer
+function drawDetailedCar(car, isPlayer) {
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.angle);
+
+    let w = car.width;
+    let h = car.height;
+
+    // Tire Tracks / Wheels
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(-w / 2 - 4, -h / 3, 5, 18);
+    ctx.fillRect(w / 2 - 1, -h / 3, 5, 18);
+    ctx.fillRect(-w / 2 - 4, h / 4, 5, 18);
+    ctx.fillRect(w / 2 - 1, h / 4, 5, 18);
+
+    // Car Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 15;
+
+    if (isPlayer) {
+        // Sleek Sports Body Base
+        ctx.fillStyle = car.hp < 40 ? '#880022' : '#ff0055';
+        ctx.beginPath();
+        ctx.roundRect(-w / 2, -h / 2, w, h, [12, 12, 6, 6]);
+        ctx.fill();
+
+        // Carbon fiber hood accent lines
+        ctx.strokeStyle = '#111118';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-w / 4, -h / 2 + 10); ctx.lineTo(-w / 4, 0);
+        ctx.moveTo(w / 4, -h / 2 + 10); ctx.lineTo(w / 4, 0);
+        ctx.stroke();
+
+        // Front Headlights (Bright Neon Blue/White Glow)
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#00f3ff';
+        ctx.shadowBlur = 12;
+        ctx.fillRect(-w / 2 + 3, -h / 2, 8, 4);
+        ctx.fillRect(w / 2 - 11, -h / 2, 8, 4);
+
+        // Rear Taillights (Aggressive Red LED Strip)
+        ctx.fillStyle = '#ff0000';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 14;
+        ctx.fillRect(-w / 2 + 3, h / 2 - 4, w - 6, 4);
+
+        // Tinted Glass Windshield & Cabin
+        ctx.fillStyle = '#0b0b16';
+        ctx.beginPath();
+        ctx.roundRect(-w / 2 + 6, -h / 4, w - 12, h * 0.4, 4);
+        ctx.fill();
+        ctx.fillStyle = '#00f3ff';
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(-w / 2 + 8, -h / 4 + 4, w - 16, 14); // Front windshield
+        ctx.fillRect(-w / 2 + 8, h / 4 - 8, w - 16, 8);  // Rear window
+        ctx.globalAlpha = 1.0;
+
+    } else {
+        // Police Interceptor Body
+        let isHeavy = car.type === 'heavy';
+        ctx.fillStyle = isHeavy ? '#141420' : '#101018';
+        ctx.beginPath();
+        ctx.roundRect(-w / 2, -h / 2, w, h, [8, 8, 8, 8]);
+        ctx.fill();
+
+        // Police Door Decal Stripe
+        ctx.fillStyle = isHeavy ? '#cc0000' : '#225588';
+        ctx.fillRect(-w / 2, -4, w, 8);
+
+        // Headlights
+        ctx.fillStyle = '#ffffaa';
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(-w / 2 + 3, -h / 2, 7, 4);
+        ctx.fillRect(w / 2 - 10, -h / 2, 7, 4);
+
+        // Windshield
+        ctx.fillStyle = '#1c2833';
+        ctx.fillRect(-w / 2 + 6, -h / 4, w - 12, h * 0.35);
+
+        // Flashing Emergency Light Bar on Roof
+        let siren = Math.floor(Date.now() / 100) % 2 === 0 ? '#ff0000' : '#0066ff';
+        ctx.fillStyle = siren;
+        ctx.shadowColor = siren;
+        ctx.shadowBlur = 16;
+        ctx.fillRect(-10, -6, 20, 6);
+    }
+
+    ctx.restore();
+}
+
 function draw() {
     ctx.save();
     
-    // Screen Shake effect calculation
     if (shakeTimer > 0) {
         let shakeX = (Math.random() - 0.5) * 12;
         let shakeY = (Math.random() - 0.5) * 12;
@@ -351,13 +435,12 @@ function draw() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // CAMERA LOCK ON PLAYER
     ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-    // Infinite Scrolling Asphalt Grid
-    ctx.strokeStyle = '#131322';
-    ctx.lineWidth = 2;
-    let gridSize = 140;
+    // Infinite Asphalt Grid with Road Markings
+    ctx.strokeStyle = '#141424';
+    ctx.lineWidth = 3;
+    let gridSize = 160;
     let startX = Math.floor((player.x - canvas.width) / gridSize) * gridSize;
     let endX = startX + canvas.width * 2;
     let startY = Math.floor((player.y - canvas.height) / gridSize) * gridSize;
@@ -374,7 +457,7 @@ function draw() {
 
     // Skid marks
     skidMarks.forEach(sm => {
-        ctx.fillStyle = 'rgba(3, 3, 6, 0.65)';
+        ctx.fillStyle = 'rgba(2, 2, 5, 0.7)';
         ctx.fillRect(sm.x - 3, sm.y - 3, 6, 6);
         sm.life--;
     });
@@ -382,7 +465,7 @@ function draw() {
 
     if (gameState === "PLAYING") {
         oilSlicks.forEach(o => {
-            ctx.fillStyle = 'rgba(6, 6, 12, 0.95)';
+            ctx.fillStyle = 'rgba(5, 5, 10, 0.95)';
             ctx.beginPath();
             ctx.arc(o.x, o.y, o.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -412,65 +495,34 @@ function draw() {
             ctx.fillRect(d.x, d.y, d.size, d.size);
         });
 
-        // Police Cars
-        cops.forEach(cop => {
-            ctx.save();
-            ctx.translate(cop.x, cop.y);
-            ctx.rotate(cop.angle);
+        // Render Police Cars
+        cops.forEach(cop => drawDetailedCar(cop, false));
 
-            ctx.fillStyle = cop.type === 'heavy' ? '#1c1c28' : '#111118';
-            ctx.fillRect(-cop.width / 2, -cop.height / 2, cop.width, cop.height);
-
-            ctx.fillStyle = '#223344';
-            ctx.fillRect(-cop.width / 2 + 4, -cop.height / 2 + 14, cop.width - 8, 18);
-
-            let siren = Math.floor(Date.now() / 120) % 2 === 0 ? '#ff0000' : '#0066ff';
-            ctx.fillStyle = siren;
-            ctx.shadowColor = siren;
-            ctx.shadowBlur = 14;
-            ctx.fillRect(-5, -5, 10, 10);
-
-            ctx.restore();
-        });
-
-        // Police Helicopters
+        // Render Police Helicopters
         helicopters.forEach(heli => {
             ctx.save();
             ctx.translate(heli.x, heli.y);
-            ctx.fillStyle = '#222233';
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.7)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 45, 0, Math.PI * 2);
+            ctx.fill(); // Helicopter rotor shadow on ground
+
+            ctx.fillStyle = '#1c1c28';
             ctx.beginPath();
             ctx.arc(0, 0, 32, 0, Math.PI * 2);
             ctx.fill();
-            // Rotor blades animation
+
             ctx.fillStyle = '#ffffff';
-            let rotLen = Math.floor(Date.now() / 40) % 2 === 0 ? 50 : 10;
+            let rotLen = Math.floor(Date.now() / 35) % 2 === 0 ? 60 : 12;
             ctx.fillRect(-rotLen/2, -4, rotLen, 8);
             ctx.fillRect(-4, -rotLen/2, 8, rotLen);
             ctx.restore();
         });
 
-        // Player Car
-        ctx.save();
-        ctx.translate(player.x, player.y);
-        ctx.rotate(player.angle);
+        // Render Player Car
+        drawDetailedCar(player, true);
 
-        ctx.fillStyle = '#ff0000';
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(-player.width / 2 + 5, player.height / 2 - 5, 6, 5);
-        ctx.fillRect(player.width / 2 - 11, player.height / 2 - 5, 6, 5);
-
-        ctx.fillStyle = player.hp < 40 ? '#aa0022' : '#ff0055';
-        ctx.shadowColor = '#ff0055';
-        ctx.shadowBlur = 18;
-        ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
-
-        ctx.fillStyle = '#00f3ff';
-        ctx.fillRect(-player.width / 2 + 6, -player.height / 2 + 16, player.width - 12, 22);
-
-        ctx.restore();
-
-        // Floating Damage & Score Popups
+        // Floating Text Popups
         floatingTexts.forEach(ft => {
             ctx.fillStyle = ft.color;
             ctx.font = "bold 16px monospace";
