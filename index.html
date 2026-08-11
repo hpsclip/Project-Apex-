@@ -59,7 +59,7 @@
 
     <div id="start-screen" class="screen">
         <h1>PROJECT APEX: OVERDRIVE</h1>
-        <p>RE-MASTERED HORIZON: Smooth grid asphalt, vibrant tropical daylight lighting, crisp UI, and dedicated free-roam pathways.</p>
+        <p>REALISTIC MOMENTUM: True car physics with inertia, traction limits, realistic top speeds (~180 MPH max), tight obstacle buildings, and bounded map limits.</p>
         <div class="input-group">
             <input type="text" id="username-input" placeholder="ENTER DRIVER NAME" maxlength="14" value="hpsclip_fn">
         </div>
@@ -151,7 +151,6 @@
         ];
 
         function saveLeaderboard() {
-            // Prevent stacking/duplicates by updating existing entry or adding unique per name, keeping top 5
             let existingIndex = leaderboard.findIndex(entry => entry.name === playerName);
             if (existingIndex !== -1) {
                 if (score > leaderboard[existingIndex].score) {
@@ -197,16 +196,18 @@
         let powerups = [];
         let floatingTexts = [];
         let mapStreetLights = [];
-        let mapBlocks = [];
+        let mapBuildings = [];
 
-        // Generate clean open layout with distinct street corridors (no collision obstacles on thoroughfares)
-        for (let i = -20; i <= 20; i++) {
-            for (let j = -20; j <= 20; j++) {
-                if (Math.abs(i) > 1 || Math.abs(j) > 1) {
-                    mapBlocks.push({ x: i * 350 + 75, y: j * 350 + 75, w: 200, h: 200 });
+        // Realistic City Layout: Bounded world with solid building obstacles that block cars!
+        const WORLD_SIZE = 4500; // Map boundary limits
+        for (let x = -WORLD_SIZE + 300; x < WORLD_SIZE - 300; x += 400) {
+            for (let y = -WORLD_SIZE + 300; y < WORLD_SIZE - 300; y += 400) {
+                // Leave street alleys clear around intersections
+                if (Math.abs(x % 800) > 150 && Math.abs(y % 800) > 150) {
+                    mapBuildings.push({ x: x, y: y, w: 250, h: 250 });
                 }
-                if (Math.random() < 0.25) {
-                    mapStreetLights.push({ x: i * 350 + 175, y: j * 350 + 175, color: Math.random() < 0.5 ? '#38bdf8' : '#f43f5e' });
+                if (Math.random() < 0.3) {
+                    mapStreetLights.push({ x: x + 125, y: y + 125, color: Math.random() < 0.5 ? '#38bdf8' : '#f43f5e' });
                 }
             }
         }
@@ -217,11 +218,11 @@
                 width: 34, height: 78,
                 angle: 0,
                 velocity: { x: 0, y: 0 },
-                maxSpeed: 24.5,
-                acceleration: 0.35,
-                braking: 0.5,
-                friction: 0.985,
-                grip: 0.30,
+                maxSpeed: 11.0, // Realistic top speed (~180 MPH when scaled)
+                acceleration: 0.18,
+                braking: 0.35,
+                friction: 0.988,
+                grip: 0.18, // Realistic drift slip
                 hp: 100, maxHp: 100,
                 armorLevel: 0, speedLevel: 0, handlingLevel: 0,
                 paintColor: playerPaint
@@ -251,14 +252,14 @@
                     score += 100;
                     updateHUD();
 
-                    if (survivalTime % 5 === 0) {
+                    if (survivalTime % 6 === 0) {
                         let angle = Math.random() * Math.PI * 2;
-                        let dist = 1000 + Math.random() * 200;
+                        let dist = 800 + Math.random() * 200;
                         cops.push(createCop(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist));
                     }
-                    if (survivalTime % 7 === 0) {
+                    if (survivalTime % 8 === 0) {
                         let angle = Math.random() * Math.PI * 2;
-                        let dist = 900 + Math.random() * 200;
+                        let dist = 800 + Math.random() * 200;
                         criminals.push(createCriminal(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist));
                     }
                     if (survivalTime % 6 === 0) spawnPowerup();
@@ -288,25 +289,25 @@
             let speedMph = Math.round(Math.hypot(player.velocity.x, player.velocity.y) * 16);
             document.getElementById('speed-display').innerText = speedMph + " MPH";
             
-            let gaugePct = Math.min(100, (speedMph / 400) * 100);
+            let gaugePct = Math.min(100, (speedMph / 200) * 100);
             document.getElementById('gauge-fill').style.width = gaugePct + "%";
         }
 
         function createCop(x, y) {
-            return { x: x, y: y, width: 34, height: 78, angle: 0, velocity: { x: 0, y: 0 }, maxSpeed: 18.5, acceleration: 0.3, grip: 0.28 };
+            return { x: x, y: y, width: 34, height: 78, angle: 0, velocity: { x: 0, y: 0 }, maxSpeed: 9.5, acceleration: 0.15, grip: 0.17 };
         }
 
         function createCriminal(x, y) {
-            return { x: x, y: y, width: 34, height: 78, angle: 0, velocity: { x: 0, y: 0 }, maxSpeed: 18.0, acceleration: 0.3, grip: 0.29, paintColor: '#fbbf24' };
+            return { x: x, y: y, width: 34, height: 78, angle: 0, velocity: { x: 0, y: 0 }, maxSpeed: 9.2, acceleration: 0.15, grip: 0.17, paintColor: '#fbbf24' };
         }
 
         function createCivilian(x, y) {
-            return { x: x, y: y, width: 32, height: 72, angle: Math.random() * Math.PI, velocity: { x: (Math.random()-0.5)*4, y: (Math.random()-0.5)*4 }, maxSpeed: 9, acceleration: 0.15, grip: 0.35, paintColor: '#475569' };
+            return { x: x, y: y, width: 32, height: 72, angle: Math.random() * Math.PI, velocity: { x: (Math.random()-0.5)*2, y: (Math.random()-0.5)*2 }, maxSpeed: 5, acceleration: 0.1, grip: 0.2, paintColor: '#475569' };
         }
 
         function spawnPowerup() {
             let angle = Math.random() * Math.PI * 2;
-            let dist = 600 + Math.random() * 200;
+            let dist = 500 + Math.random() * 200;
             powerups.push({ x: player.x + Math.cos(angle) * dist, y: player.y + Math.sin(angle) * dist, type: Math.random() < 0.4 ? 'wrench' : (Math.random() < 0.75 ? 'nitro' : 'cash') });
         }
 
@@ -318,12 +319,67 @@
         function spawnDebris(x, y, color = '#f43f5e') {
             shakeTimer = 12;
             for (let i = 0; i < 15; i++) {
-                debris.push({ x: x, y: y, vx: (Math.random() - 0.5) * 22, vy: (Math.random() - 0.5) * 22, size: 3 + Math.random() * 6, color: color, life: 50 });
+                debris.push({ x: x, y: y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 16, size: 3 + Math.random() * 5, color: color, life: 50 });
             }
         }
 
         function spawnFloatingText(text, x, y, color) {
             floatingTexts.push({ text: text, x: x, y: y, life: 50, color: color });
+        }
+
+        function checkBuildingCollisions(vehicle) {
+            let halfW = vehicle.width / 2;
+            let halfH = vehicle.height / 2;
+            
+            // Map boundary walls
+            if (vehicle.x - halfW < -WORLD_SIZE || vehicle.x + halfW > WORLD_SIZE ||
+                vehicle.y - halfH < -WORLD_SIZE || vehicle.y + halfH > WORLD_SIZE) {
+                vehicle.x = Math.max(-WORLD_SIZE + halfW, Math.min(WORLD_SIZE - halfW, vehicle.x));
+                vehicle.y = Math.max(-WORLD_SIZE + halfH, Math.min(WORLD_SIZE - halfH, vehicle.y));
+                vehicle.velocity.x *= -0.5;
+                vehicle.velocity.y *= -0.5;
+                if (vehicle === player) {
+                    player.hp -= 10;
+                    spawnDebris(player.x, player.y, '#f43f5e');
+                    spawnFloatingText("-10 HP CRASH", player.x, player.y, "#f43f5e");
+                    updateHUD();
+                    if (player.hp <= 0) triggerGameOver();
+                }
+                return;
+            }
+
+            // Building block collisions
+            for (let b of mapBuildings) {
+                if (vehicle.x + halfW > b.x && vehicle.x - halfW < b.x + b.w &&
+                    vehicle.y + halfH > b.y && vehicle.y - halfH < b.y + b.h) {
+                    
+                    // Resolve collision by pushing out and bouncing velocity
+                    let overlapX = Math.min(vehicle.x + halfW - b.x, b.x + b.w - (vehicle.x - halfW));
+                    let overlapY = Math.min(vehicle.y + halfH - b.y, b.y + b.h - (vehicle.y - halfH));
+                    
+                    if (overlapX < overlapY) {
+                        if (vehicle.x < b.x + b.w / 2) vehicle.x = b.x - halfW;
+                        else vehicle.x = b.x + b.w + halfW;
+                        vehicle.velocity.x *= -0.4;
+                    } else {
+                        if (vehicle.y < b.y + b.h / 2) vehicle.y = b.y - halfH;
+                        else vehicle.y = b.y + b.h + halfH;
+                        vehicle.velocity.y *= -0.4;
+                    }
+
+                    if (vehicle === player) {
+                        let impactSpd = Math.hypot(vehicle.velocity.x, vehicle.velocity.y);
+                        let dmg = Math.round(impactSpd * 1.5);
+                        if (dmg > 5) {
+                            player.hp -= dmg;
+                            spawnDebris(player.x, player.y, '#f43f5e');
+                            spawnFloatingText("-" + dmg + " HP", player.x, player.y, "#f43f5e");
+                            updateHUD();
+                            if (player.hp <= 0) triggerGameOver();
+                        }
+                    }
+                }
+            }
         }
 
         function updateVehiclePhysics(vehicle, input) {
@@ -339,13 +395,13 @@
             else if (input.braking) forwardSpeed -= vehicle.braking;
             else forwardSpeed *= vehicle.friction;
 
-            forwardSpeed = Math.max(-vehicle.maxSpeed * 0.4, Math.min(vehicle.maxSpeed, forwardSpeed));
+            forwardSpeed = Math.max(-vehicle.maxSpeed * 0.3, Math.min(vehicle.maxSpeed, forwardSpeed));
 
-            let turnRate = 0.10 + (vehicle === player ? player.handlingLevel * 0.012 : 0);
-            if (input.turningLeft && Math.abs(forwardSpeed) > 0.3) vehicle.angle -= turnRate * (forwardSpeed / vehicle.maxSpeed);
-            if (input.turningRight && Math.abs(forwardSpeed) > 0.3) vehicle.angle += turnRate * (forwardSpeed / vehicle.maxSpeed);
+            let turnRate = 0.07 + (vehicle === player ? player.handlingLevel * 0.008 : 0);
+            if (input.turningLeft && Math.abs(forwardSpeed) > 0.2) vehicle.angle -= turnRate * (forwardSpeed / vehicle.maxSpeed);
+            if (input.turningRight && Math.abs(forwardSpeed) > 0.2) vehicle.angle += turnRate * (forwardSpeed / vehicle.maxSpeed);
 
-            let currentGrip = input.handbraking ? vehicle.grip * 0.15 : vehicle.grip;
+            let currentGrip = input.handbraking ? vehicle.grip * 0.12 : vehicle.grip;
             lateralSpeed *= (1 - currentGrip);
 
             vehicle.velocity.x = forwardX * forwardSpeed + rightX * lateralSpeed;
@@ -354,11 +410,13 @@
             vehicle.x += vehicle.velocity.x;
             vehicle.y += vehicle.velocity.y;
 
+            checkBuildingCollisions(vehicle);
+
             if (vehicle === player) {
                 let currentSpd = Math.hypot(vehicle.velocity.x, vehicle.velocity.y);
-                if (Math.abs(lateralSpeed) > 2.0 && currentSpd > 4) {
+                if (Math.abs(lateralSpeed) > 1.5 && currentSpd > 3) {
                     driftCombo++;
-                    if (driftCombo % 18 === 0) {
+                    if (driftCombo % 22 === 0) {
                         cash += 40;
                         score += 200;
                         spawnFloatingText("DRIFT +$40", player.x, player.y - 35, "#10b981");
@@ -379,14 +437,14 @@
                     driftCombo = 0;
                 }
 
-                if (currentSpd > 10 && Math.random() < 0.6) {
+                if (currentSpd > 6 && Math.random() < 0.5) {
                     speedLines.push({
                         x: vehicle.x + (Math.random() - 0.5) * canvas.width,
                         y: vehicle.y + (Math.random() - 0.5) * canvas.height,
                         vx: -vehicle.velocity.x * 1.2,
                         vy: -vehicle.velocity.y * 1.2,
-                        length: 40 + currentSpd * 3,
-                        alpha: 0.35,
+                        length: 30 + currentSpd * 2,
+                        alpha: 0.3,
                         life: 15
                     });
                 }
@@ -413,7 +471,7 @@
                         player.hp = Math.min(player.maxHp, player.hp + 35);
                         spawnFloatingText("+35 HP", p.x, p.y, "#10b981");
                     } else if (p.type === 'nitro') {
-                        player.velocity.x *= 1.8; player.velocity.y *= 1.8;
+                        player.velocity.x *= 1.6; player.velocity.y *= 1.6;
                         spawnFloatingText("NITRO BOOST!", p.x, p.y, "#fbbf24");
                     } else {
                         cash += 150;
@@ -438,12 +496,12 @@
                 let angleDiff = targetAngle - cop.angle;
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                cop.angle += angleDiff * 0.1;
+                cop.angle += angleDiff * 0.08;
 
                 updateVehiclePhysics(cop, { accelerating: true, braking: false, turningLeft: angleDiff < -0.05, turningRight: angleDiff > 0.05, handbraking: false });
 
                 if (Math.hypot(player.x - cop.x, player.y - cop.y) < 55) {
-                    let damage = 18 - (player.armorLevel * 4);
+                    let damage = 16 - (player.armorLevel * 4);
                     let finalDmg = Math.max(5, damage);
                     player.hp -= finalDmg;
                     spawnDebris(player.x, player.y, '#f43f5e');
@@ -465,7 +523,7 @@
                 let angleDiff = targetAngle - c.angle;
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                c.angle += angleDiff * 0.09;
+                c.angle += angleDiff * 0.07;
 
                 updateVehiclePhysics(c, { accelerating: true, braking: false, turningLeft: angleDiff < -0.05, turningRight: angleDiff > 0.05, handbraking: false });
 
@@ -525,10 +583,10 @@
                 cash -= 200; player.armorLevel++; player.maxHp += 25; player.hp = player.maxHp;
                 spawnFloatingText("ARMOR UP", player.x, player.y, "#10b981");
             } else if (type === 'speed' && cash >= 250) {
-                cash -= 250; player.speedLevel++; player.maxSpeed += 2.5; player.acceleration += 0.03;
+                cash -= 250; player.speedLevel++; player.maxSpeed += 1.5; player.acceleration += 0.02;
                 spawnFloatingText("ENGINE UP", player.x, player.y, "#10b981");
             } else if (type === 'handling' && cash >= 180) {
-                cash -= 180; player.handlingLevel++; player.grip += 0.025;
+                cash -= 180; player.handlingLevel++; player.grip += 0.02;
                 spawnFloatingText("HANDLING UP", player.x, player.y, "#10b981");
             }
             updateHUD();
@@ -594,35 +652,35 @@
                 ctx.translate(sx, sy);
             }
 
-            // Bright Horizon asphalt background tone instead of plain black
+            // Clean asphalt dark tone
             ctx.fillStyle = '#0b101b';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
             ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-            // Clean visible grid lines for lanes
-            ctx.strokeStyle = '#1e293b';
+            // Detailed Grid Alleyways
+            ctx.strokeStyle = '#161e2e';
             ctx.lineWidth = 2;
-            let startX = Math.floor((player.x - canvas.width) / 175) * 175;
+            let startX = Math.floor((player.x - canvas.width) / 200) * 200;
             let endX = startX + canvas.width * 2;
-            let startY = Math.floor((player.y - canvas.height) / 175) * 175;
+            let startY = Math.floor((player.y - canvas.height) / 200) * 200;
             let endY = startY + canvas.height * 2;
 
-            for (let x = startX; x <= endX; x += 175) {
+            for (let x = startX; x <= endX; x += 200) {
                 ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
             }
-            for (let y = startY; y <= endY; y += 175) {
+            for (let y = startY; y <= endY; y += 200) {
                 ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
             }
 
-            // Clean architectural blocks with soft glowing outlines
-            mapBlocks.forEach(b => {
+            // Realistic City Architecture Blocks (Obstacles)
+            mapBuildings.forEach(b => {
                 if (Math.abs(b.x - player.x) < canvas.width && Math.abs(b.y - player.y) < canvas.height) {
                     ctx.fillStyle = '#111827';
                     ctx.fillRect(b.x, b.y, b.w, b.h);
                     ctx.strokeStyle = '#1f2937';
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 2;
                     ctx.strokeRect(b.x, b.y, b.w, b.h);
                 }
             });
