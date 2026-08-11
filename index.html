@@ -19,13 +19,14 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 3, 8, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; color: #fff;
         }
         h1 { font-size: 52px; color: #ff0055; text-shadow: 0 0 25px #ff0055; margin-bottom: 15px; }
-        p { color: #a0a0c0; font-size: 16px; margin-bottom: 25px; }
+        p { color: #a0a0c0; font-size: 16px; margin-bottom: 25px; text-align: center; }
         .btn {
             background: #ff0055; color: white; border: none; padding: 15px 40px; font-size: 20px; font-family: monospace; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px #ff0055; border-radius: 8px; transition: 0.2s; margin: 8px;
         }
         .btn:hover { background: #ff3377; box-shadow: 0 0 30px #ff3377; transform: scale(1.05); }
         .shop-container { display: flex; gap: 20px; margin-bottom: 20px; }
         .shop-card { background: #0d0d1a; border: 2px solid #00f3ff; padding: 20px; border-radius: 10px; text-align: center; width: 200px; }
+        .stats-display { font-size: 24px; color: #00f3ff; margin-bottom: 10px; text-shadow: 0 0 10px #00f3ff; }
     </style>
 </head>
 <body>
@@ -38,13 +39,13 @@
 
     <div id="start-screen" class="screen">
         <h1>PROJECT APEX: OVERDRIVE</h1>
-        <p>Drive with WASD/Arrows, Handbrake with [Space], Drop Oil Slick with [E], Open Garage Shop with [B].</p>
+        <p>Drive with WASD/Arrows, Handbrake with [Space], Drop Oil Slick with [E], Open Garage Shop with [B].<br>Ultra-fast sports car physics with ultra-smooth rendering.</p>
         <button id="start-btn" class="btn">LAUNCH ENGINE</button>
     </div>
 
     <div id="shop-screen" class="screen" style="display: none;">
         <h1>GARAGE UPGRADES</h1>
-        <p>Spend cash to upgrade your sports chassis and outrun the cops.</p>
+        <p>Spend cash to upgrade your supercar chassis and outrun the cops.</p>
         <div class="shop-container">
             <div class="shop-card">
                 <h3>ARMOR</h3>
@@ -66,8 +67,10 @@
     </div>
 
     <div id="game-over-screen" class="screen" style="display: none;">
-        <h1>WRECKED</h1>
-        <p>The cops boxed you in.</p>
+        <h1>WASTED</h1>
+        <div class="stats-display" id="final-score-text">ur score: 0</div>
+        <div class="stats-display" id="best-score-text" style="color: #00ff66;">ur best: 0</div>
+        <p style="margin-top: 15px;">The law caught up to you.</p>
         <button class="btn" onclick="location.reload()">RELOAD GAME</button>
     </div>
 
@@ -88,6 +91,7 @@
         let survivalTime = 0;
         let cash = 250;
         let score = 0;
+        let bestScore = localStorage.getItem('apex_best_score') || 0;
         let driftCombo = 0;
         let shakeTimer = 0;
         let gameInterval;
@@ -141,19 +145,18 @@
         let powerups = [];
         let floatingTexts = [];
         let particleSystem = [];
-        let gridLines = [];
 
         function createPlayerCar() {
             return {
                 x: 0, y: 0,
-                width: 44, height: 92,
+                width: 38, height: 86, // Streamlined supercar proportions
                 angle: 0,
                 velocity: { x: 0, y: 0 },
-                maxSpeed: 18,
-                acceleration: 0.22,
-                braking: 0.4,
-                friction: 0.98,
-                grip: 0.28,
+                maxSpeed: 24, // Blazing fast top speed
+                acceleration: 0.35,
+                braking: 0.6,
+                friction: 0.985,
+                grip: 0.32,
                 hp: 100, maxHp: 100,
                 armorLevel: 0, speedLevel: 0, handlingLevel: 0,
                 paintColor: '#ff0055', rimColor: '#00f3ff'
@@ -165,30 +168,29 @@
             document.getElementById('start-screen').style.display = 'none';
             gameState = "PLAYING";
             player = createPlayerCar();
-            cops = [createCop(600, 600, 'sport_cop')];
-            criminals = [createCriminal(-600, -600, 'street_racer')];
+            cops = [createCop(600, 600, 'interceptor')];
+            criminals = [createCriminal(-600, -600)];
             survivalTime = 0; score = 0;
             
             clearInterval(gameInterval);
             gameInterval = setInterval(() => {
                 if (gameState === "PLAYING") {
                     survivalTime++;
-                    cash += 25;
-                    score += 150 * Math.max(1, Math.floor(driftCombo / 3));
+                    cash += 30;
+                    score += 200 * Math.max(1, Math.floor(driftCombo / 3));
                     updateHUD();
 
-                    if (survivalTime % 4 === 0) {
+                    if (survivalTime % 3 === 0) {
+                        let angle = Math.random() * Math.PI * 2;
+                        let dist = 1400 + Math.random() * 400;
+                        cops.push(createCop(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, 'interceptor'));
+                    }
+                    if (survivalTime % 5 === 0) {
                         let angle = Math.random() * Math.PI * 2;
                         let dist = 1200 + Math.random() * 300;
-                        let type = Math.random() < 0.5 ? 'sport_cop' : 'interceptor';
-                        cops.push(createCop(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, type));
+                        criminals.push(createCriminal(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist));
                     }
-                    if (survivalTime % 6 === 0) {
-                        let angle = Math.random() * Math.PI * 2;
-                        let dist = 1000 + Math.random() * 300;
-                        criminals.push(createCriminal(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, 'street_racer'));
-                    }
-                    if (survivalTime % 5 === 0) spawnPowerup();
+                    if (survivalTime % 4 === 0) spawnPowerup();
                 }
             }, 1000);
         });
@@ -196,37 +198,35 @@
         function updateHUD() {
             document.getElementById('time-display').innerText = survivalTime + "s";
             document.getElementById('hp-display').innerText = player.hp + "%";
-            let speedMph = Math.round(Math.hypot(player.velocity.x, player.velocity.y) * 13);
+            let speedMph = Math.round(Math.hypot(player.velocity.x, player.velocity.y) * 11);
             document.getElementById('speed-display').innerText = speedMph + " MPH | Score: " + score + " | Cash: $" + cash;
         }
 
         function createCop(x, y, type) {
-            let interceptor = type === 'interceptor';
             return {
                 x: x, y: y,
-                width: 44, height: 90,
+                width: 38, height: 84,
                 angle: 0, velocity: { x: 0, y: 0 },
                 type: type,
-                maxSpeed: interceptor ? 16.5 : 14.5,
-                acceleration: interceptor ? 0.25 : 0.2, grip: 0.25
+                maxSpeed: 21.5,
+                acceleration: 0.32, grip: 0.3
             };
         }
 
-        function createCriminal(x, y, type) {
+        function createCriminal(x, y) {
             return {
                 x: x, y: y,
-                width: 42, height: 88,
+                width: 36, height: 82,
                 angle: 0, velocity: { x: 0, y: 0 },
-                type: type,
-                maxSpeed: 15.5,
-                acceleration: 0.23, grip: 0.26,
+                maxSpeed: 20,
+                acceleration: 0.3, grip: 0.31,
                 paintColor: '#ffaa00'
             };
         }
 
         function spawnPowerup() {
             let angle = Math.random() * Math.PI * 2;
-            let dist = 750 + Math.random() * 250;
+            let dist = 800 + Math.random() * 300;
             powerups.push({ x: player.x + Math.cos(angle) * dist, y: player.y + Math.sin(angle) * dist, type: Math.random() < 0.4 ? 'wrench' : (Math.random() < 0.75 ? 'nitro' : 'cash') });
         }
 
@@ -236,15 +236,15 @@
         }
 
         function spawnDebris(x, y, color = '#ff4500') {
-            shakeTimer = 15;
+            shakeTimer = 12;
             audio.playCrash();
-            for (let i = 0; i < 20; i++) {
-                debris.push({ x: x, y: y, vx: (Math.random() - 0.5) * 26, vy: (Math.random() - 0.5) * 26, size: 5 + Math.random() * 10, color: color, life: 70 });
+            for (let i = 0; i < 16; i++) {
+                debris.push({ x: x, y: y, vx: (Math.random() - 0.5) * 22, vy: (Math.random() - 0.5) * 22, size: 4 + Math.random() * 8, color: color, life: 60 });
             }
         }
 
         function spawnFloatingText(text, x, y, color) {
-            floatingTexts.push({ text: text, x: x, y: y, life: 70, color: color });
+            floatingTexts.push({ text: text, x: x, y: y, life: 60, color: color });
         }
 
         function updateVehiclePhysics(vehicle, input) {
@@ -262,11 +262,11 @@
 
             forwardSpeed = Math.max(-vehicle.maxSpeed * 0.4, Math.min(vehicle.maxSpeed, forwardSpeed));
 
-            let turnRate = 0.085 + (vehicle === player ? player.handlingLevel * 0.009 : 0);
-            if (input.turningLeft && Math.abs(forwardSpeed) > 0.3) vehicle.angle -= turnRate * (forwardSpeed / vehicle.maxSpeed);
-            if (input.turningRight && Math.abs(forwardSpeed) > 0.3) vehicle.angle += turnRate * (forwardSpeed / vehicle.maxSpeed);
+            let turnRate = 0.095 + (vehicle === player ? player.handlingLevel * 0.01 : 0);
+            if (input.turningLeft && Math.abs(forwardSpeed) > 0.2) vehicle.angle -= turnRate * (forwardSpeed / vehicle.maxSpeed);
+            if (input.turningRight && Math.abs(forwardSpeed) > 0.2) vehicle.angle += turnRate * (forwardSpeed / vehicle.maxSpeed);
 
-            let currentGrip = input.handbraking ? vehicle.grip * 0.15 : vehicle.grip;
+            let currentGrip = input.handbraking ? vehicle.grip * 0.12 : vehicle.grip;
             lateralSpeed *= (1 - currentGrip);
 
             vehicle.velocity.x = forwardX * forwardSpeed + rightX * lateralSpeed;
@@ -276,25 +276,25 @@
             vehicle.y += vehicle.velocity.y;
 
             if (vehicle === player) {
-                if (Math.abs(lateralSpeed) > 2.6 && Math.abs(forwardSpeed) > 3.5) {
+                if (Math.abs(lateralSpeed) > 2.2 && Math.abs(forwardSpeed) > 3.0) {
                     driftCombo++;
-                    if (driftCombo % 18 === 0) {
-                        cash += 60;
-                        spawnFloatingText("PRO DRIFT +$60", player.x, player.y - 45, "#00ff66");
+                    if (driftCombo % 15 === 0) {
+                        cash += 75;
+                        spawnFloatingText("SUPER DRIFT +$75", player.x, player.y - 45, "#00ff66");
                     }
-                    skidMarks.push({ x: vehicle.x, y: vehicle.y, life: 80 });
-                    if (skidMarks.length > 500) skidMarks.shift();
+                    skidMarks.push({ x: vehicle.x, y: vehicle.y, life: 70 });
+                    if (skidMarks.length > 400) skidMarks.shift();
 
-                    if (Math.random() < 0.6) {
+                    if (Math.random() < 0.7) {
                         particleSystem.push({
-                            x: vehicle.x - forwardX * 35 + (Math.random() - 0.5) * 22,
-                            y: vehicle.y - forwardY * 35 + (Math.random() - 0.5) * 22,
+                            x: vehicle.x - forwardX * 32 + (Math.random() - 0.5) * 18,
+                            y: vehicle.y - forwardY * 32 + (Math.random() - 0.5) * 18,
                             vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
-                            size: 10 + Math.random() * 12, alpha: 0.7, color: '#dddddd'
+                            size: 8 + Math.random() * 10, alpha: 0.8, color: '#ffffff'
                         });
                     }
                 } else {
-                    if (driftCombo > 15) score += driftCombo * 25;
+                    if (driftCombo > 12) score += driftCombo * 30;
                     driftCombo = 0;
                 }
             }
@@ -315,17 +315,17 @@
             updateVehiclePhysics(player, pInput);
 
             powerups.forEach((p, index) => {
-                if (Math.hypot(player.x - p.x, player.y - p.y) < 55) {
+                if (Math.hypot(player.x - p.x, player.y - p.y) < 50) {
                     if (p.type === 'wrench') {
-                        player.hp = Math.min(player.maxHp, player.hp + 45);
-                        spawnFloatingText("+45 HP REPAIRED", p.x, p.y, "#00ff66");
+                        player.hp = Math.min(player.maxHp, player.hp + 50);
+                        spawnFloatingText("+50 HP REPAIRED", p.x, p.y, "#00ff66");
                     } else if (p.type === 'nitro') {
                         audio.playNitro();
-                        player.velocity.x *= 1.85; player.velocity.y *= 1.85;
-                        spawnFloatingText("NITRO BOOST ENGAGED!", p.x, p.y, "#ffaa00");
+                        player.velocity.x *= 1.9; player.velocity.y *= 1.9;
+                        spawnFloatingText("HYPER NITRO ENGAGED!", p.x, p.y, "#ffaa00");
                     } else {
-                        cash += 250;
-                        spawnFloatingText("+$250 CASH", p.x, p.y, "#ffff00");
+                        cash += 300;
+                        spawnFloatingText("+$300 CASH", p.x, p.y, "#ffff00");
                     }
                     powerups.splice(index, 1);
                     updateHUD();
@@ -333,11 +333,11 @@
             });
 
             cops.forEach(cop => {
-                let hitOil = oilSlicks.findIndex(o => Math.hypot(cop.x - o.x, cop.y - o.y) < o.radius + 16);
+                let hitOil = oilSlicks.findIndex(o => Math.hypot(cop.x - o.x, cop.y - o.y) < o.radius + 15);
                 if (hitOil !== -1) {
-                    cop.angle += Math.PI * 2.0;
+                    cop.angle += Math.PI * 2.5;
                     oilSlicks.splice(hitOil, 1);
-                    spawnFloatingText("COP SPUN OUT!", cop.x, cop.y, "#00f3ff");
+                    spawnFloatingText("COP WIPED OUT!", cop.x, cop.y, "#00f3ff");
                 }
 
                 let dx = player.x - cop.x;
@@ -346,20 +346,20 @@
                 let angleDiff = targetAngle - cop.angle;
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                cop.angle += angleDiff * 0.1;
+                cop.angle += angleDiff * 0.12;
 
                 updateVehiclePhysics(cop, { accelerating: true, braking: false, turningLeft: angleDiff < -0.05, turningRight: angleDiff > 0.05, handbraking: false });
 
-                if (Math.hypot(player.x - cop.x, player.y - cop.y) < 65) {
-                    let damage = 22 - (player.armorLevel * 5);
-                    let finalDmg = Math.max(6, damage);
+                if (Math.hypot(player.x - cop.x, player.y - cop.y) < 58) {
+                    let damage = 20 - (player.armorLevel * 5);
+                    let finalDmg = Math.max(5, damage);
                     player.hp -= finalDmg;
                     spawnDebris(player.x, player.y, '#ff0055');
                     spawnFloatingText("-" + finalDmg + " HP", player.x, player.y, "#ff0000");
 
                     let tempVx = player.velocity.x, tempVy = player.velocity.y;
-                    player.velocity.x = cop.velocity.x * 0.5; player.velocity.y = cop.velocity.y * 0.5;
-                    cop.velocity.x = tempVx * 0.3; cop.velocity.y = tempVy * 0.3;
+                    player.velocity.x = cop.velocity.x * 0.45; player.velocity.y = cop.velocity.y * 0.45;
+                    cop.velocity.x = tempVx * 0.25; cop.velocity.y = tempVy * 0.25;
 
                     updateHUD();
                     if (player.hp <= 0) triggerGameOver();
@@ -367,11 +367,11 @@
             });
 
             criminals.forEach((c, index) => {
-                let hitOil = oilSlicks.findIndex(o => Math.hypot(c.x - o.x, c.y - o.y) < o.radius + 16);
+                let hitOil = oilSlicks.findIndex(o => Math.hypot(c.x - o.x, c.y - o.y) < o.radius + 15);
                 if (hitOil !== -1) {
-                    c.angle += Math.PI * 2.0;
+                    c.angle += Math.PI * 2.5;
                     oilSlicks.splice(hitOil, 1);
-                    spawnFloatingText("STREET RACER SPUN OUT!", c.x, c.y, "#ffaa00");
+                    spawnFloatingText("CRIMINAL SPUN OUT!", c.x, c.y, "#ffaa00");
                 }
 
                 let dx = player.x - c.x;
@@ -380,15 +380,15 @@
                 let angleDiff = targetAngle - c.angle;
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                c.angle += angleDiff * 0.09;
+                c.angle += angleDiff * 0.11;
 
                 updateVehiclePhysics(c, { accelerating: true, braking: false, turningLeft: angleDiff < -0.05, turningRight: angleDiff > 0.05, handbraking: false });
 
-                if (Math.hypot(player.x - c.x, player.y - c.y) < 65) {
-                    cash += 150;
-                    score += 500;
+                if (Math.hypot(player.x - c.x, player.y - c.y) < 58) {
+                    cash += 200;
+                    score += 600;
                     spawnDebris(c.x, c.y, '#ffaa00');
-                    spawnFloatingText("RACER WRECKED! +$150", c.x, c.y, "#ffff00");
+                    spawnFloatingText("TARGET ELIMINATED! +$200", c.x, c.y, "#ffff00");
                     criminals.splice(index, 1);
                     updateHUD();
                 }
@@ -396,14 +396,20 @@
 
             debris.forEach(d => { d.x += d.vx; d.y += d.vy; d.life--; });
             debris = debris.filter(d => d.life > 0);
-            particleSystem.forEach(p => { p.x += p.vx; p.y += p.vy; p.alpha -= 0.012; });
+            particleSystem.forEach(p => { p.x += p.vx; p.y += p.vy; p.alpha -= 0.015; });
             particleSystem = particleSystem.filter(p => p.alpha > 0);
-            floatingTexts.forEach(ft => { ft.y -= 1.1; ft.life--; });
+            floatingTexts.forEach(ft => { ft.y -= 1.2; ft.life--; });
             floatingTexts = floatingTexts.filter(ft => ft.life > 0);
         }
 
         function triggerGameOver() {
             gameState = "OVER";
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('apex_best_score', bestScore);
+            }
+            document.getElementById('final-score-text').innerText = "ur score: " + score;
+            document.getElementById('best-score-text').innerText = "ur best: " + bestScore;
             document.getElementById('game-over-screen').style.display = 'flex';
         }
 
@@ -422,17 +428,17 @@
                 cash -= 200; player.armorLevel++; player.maxHp += 30; player.hp = player.maxHp;
                 spawnFloatingText("ARMOR UPGRADED!", player.x, player.y, "#00ff66");
             } else if (type === 'speed' && cash >= 250) {
-                cash -= 250; player.speedLevel++; player.maxSpeed += 2.8; player.acceleration += 0.035;
+                cash -= 250; player.speedLevel++; player.maxSpeed += 3.2; player.acceleration += 0.04;
                 spawnFloatingText("ENGINE UPGRADED!", player.x, player.y, "#00ff66");
             } else if (type === 'handling' && cash >= 180) {
-                cash -= 180; player.handlingLevel++; player.grip += 0.035;
+                cash -= 180; player.handlingLevel++; player.grip += 0.04;
                 spawnFloatingText("HANDLING UPGRADED!", player.x, player.y, "#00ff66");
             }
             updateHUD();
         }
 
-        /* --- SLEEK SPORTS CAR RENDERER --- */
-        function drawDetailedCar(car, isPlayer, isCriminal = false) {
+        /* --- ULTRA-SLEEK LOW-PROFILE SUPERCAR RENDERER --- */
+        function drawSupercar(car, isPlayer, isCriminal = false) {
             ctx.save();
             ctx.translate(car.x, car.y);
             ctx.rotate(car.angle);
@@ -442,85 +448,85 @@
 
             if (isPlayer) {
                 ctx.shadowColor = car.rimColor;
-                ctx.shadowBlur = 22;
+                ctx.shadowBlur = 20;
                 ctx.strokeStyle = car.rimColor;
-                ctx.lineWidth = 3;
-                ctx.strokeRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8);
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6);
             }
 
-            // Tires
+            // Wheels (Sleek low profile)
             ctx.fillStyle = '#010103';
-            ctx.fillRect(-w / 2 - 6, -h / 3, 7, 24);
-            ctx.fillRect(w / 2 - 1, -h / 3, 7, 24);
-            ctx.fillRect(-w / 2 - 6, h / 4, 7, 24);
-            ctx.fillRect(w / 2 - 1, h / 4, 7, 24);
+            ctx.fillRect(-w / 2 - 5, -h / 3, 6, 20);
+            ctx.fillRect(w / 2 - 1, -h / 3, 6, 20);
+            ctx.fillRect(-w / 2 - 5, h / 4, 6, 20);
+            ctx.fillRect(w / 2 - 1, h / 4, 6, 20);
 
             // Rims
-            ctx.fillStyle = isPlayer ? car.rimColor : (isCriminal ? '#ff4500' : '#00f3ff');
-            ctx.fillRect(-w / 2 - 4, -h / 3 + 6, 3, 12);
-            ctx.fillRect(w / 2 + 1, -h / 3 + 6, 3, 12);
-            ctx.fillRect(-w / 2 - 4, h / 4 + 6, 3, 12);
-            ctx.fillRect(w / 2 + 1, h / 4 + 6, 3, 12);
+            ctx.fillStyle = isPlayer ? car.rimColor : (isCriminal ? '#ffaa00' : '#00f3ff');
+            ctx.fillRect(-w / 2 - 3, -h / 3 + 5, 3, 10);
+            ctx.fillRect(w / 2 + 1, -h / 3 + 5, 3, 10);
+            ctx.fillRect(-w / 2 - 3, h / 4 + 5, 3, 10);
+            ctx.fillRect(w / 2 + 1, h / 4 + 5, 3, 10);
 
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowBlur = 18;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 15;
 
-            // Sleek Sports Body Shape
+            // Supercar Aerodynamic Body (Tapered nose, wide rear)
             let bodyColor = isPlayer ? (car.hp < 40 ? '#880022' : car.paintColor) : (isCriminal ? '#ff6600' : '#1438a0');
             ctx.fillStyle = bodyColor;
             ctx.beginPath();
-            ctx.moveTo(-w / 2 + 6, -h / 2);
-            ctx.lineTo(w / 2 - 6, -h / 2);
-            ctx.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + 10);
-            ctx.lineTo(w / 2, h / 2 - 8);
-            ctx.quadraticCurveTo(w / 2, h / 2, w / 2 - 8, h / 2);
-            ctx.lineTo(-w / 2 + 8, h / 2);
-            ctx.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - 8);
-            ctx.lineTo(-w / 2, -h / 2 + 10);
-            ctx.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + 6, -h / 2);
+            ctx.moveTo(-w / 2 + 8, -h / 2); // Sharp nose cone
+            ctx.lineTo(w / 2 - 8, -h / 2);
+            ctx.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + 12);
+            ctx.lineTo(w / 2 + 2, h / 2 - 6); // Wide rear fenders
+            ctx.quadraticCurveTo(w / 2 + 2, h / 2, w / 2 - 6, h / 2);
+            ctx.lineTo(-w / 2 + 6, h / 2);
+            ctx.quadraticCurveTo(-w / 2 - 2, h / 2, -w / 2 - 2, h / 2 - 6);
+            ctx.lineTo(-w / 2, -h / 2 + 12);
+            ctx.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + 8, -h / 2);
             ctx.fill();
 
-            // Hood Accent
+            // Carbon Hood Vent
             ctx.fillStyle = '#0a0a14';
             ctx.beginPath();
-            ctx.roundRect(-w / 3.2, -h / 2 + 8, w * 0.64, h * 0.3, 5);
+            ctx.roundRect(-w / 3, -h / 2 + 10, w * 0.6, h * 0.28, 4);
             ctx.fill();
 
-            // Spoiler
+            // GT Rear Wing
             ctx.fillStyle = '#0a0a14';
-            ctx.fillRect(-w / 2 - 3, h / 2 - 7, w + 6, 6);
+            ctx.fillRect(-w / 2 - 3, h / 2 - 6, w + 6, 5);
 
-            // Headlights
+            // Aggressive LED Headlights
             ctx.fillStyle = '#ffffff';
             ctx.shadowColor = isPlayer ? '#00f3ff' : '#ffffff';
-            ctx.shadowBlur = 18;
-            ctx.fillRect(-w / 2 + 3, -h / 2, 8, 5);
-            ctx.fillRect(w / 2 - 11, -h / 2, 8, 5);
+            ctx.shadowBlur = 15;
+            ctx.fillRect(-w / 2 + 2, -h / 2, 7, 4);
+            ctx.fillRect(w / 2 - 9, -h / 2, 7, 4);
 
             // Tail Lights
             ctx.fillStyle = '#ff0000';
             ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 18;
-            ctx.fillRect(-w / 2 + 3, h / 2 - 5, w - 6, 5);
+            ctx.shadowBlur = 15;
+            ctx.fillRect(-w / 2 + 2, h / 2 - 4, w - 4, 4);
 
-            // Windshield & Glass Cockpit
+            // Swept-back Tinted Windshield Canopy
             ctx.fillStyle = '#04040c';
             ctx.beginPath();
-            ctx.roundRect(-w / 2 + 7, -h / 4.2, w - 14, h * 0.38, 6);
+            ctx.roundRect(-w / 2 + 6, -h / 4, w - 12, h * 0.35, 5);
             ctx.fill();
 
             ctx.fillStyle = isPlayer ? '#00f3ff' : '#ffffff';
-            ctx.globalAlpha = 0.8;
-            ctx.fillRect(-w / 2 + 9, -h / 4.2 + 3, w - 18, 14);
+            ctx.globalAlpha = 0.85;
+            ctx.fillRect(-w / 2 + 8, -h / 4 + 2, w - 16, 12);
             ctx.globalAlpha = 1.0;
 
-            // Police Light Bar for Cops
+            // Low Profile Police Light Bar
             if (!isPlayer && !isCriminal) {
-                let siren = Math.floor(Date.now() / 70) % 2 === 0 ? '#ff0000' : '#0066ff';
+                let siren = Math.floor(Date.now() / 60) % 2 === 0 ? '#ff0000' : '#0066ff';
                 ctx.fillStyle = siren;
                 ctx.shadowColor = siren;
-                ctx.shadowBlur = 22;
-                ctx.fillRect(-14, -8, 28, 8);
+                ctx.shadowBlur = 20;
+                ctx.fillRect(-12, -6, 24, 6);
             }
 
             ctx.restore();
@@ -529,8 +535,8 @@
         function draw() {
             ctx.save();
             if (shakeTimer > 0) {
-                let sx = (Math.random() - 0.5) * 14;
-                let sy = (Math.random() - 0.5) * 14;
+                let sx = (Math.random() - 0.5) * 12;
+                let sy = (Math.random() - 0.5) * 12;
                 ctx.translate(sx, sy);
             }
 
@@ -540,24 +546,24 @@
             ctx.save();
             ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-            // Infinite Clean Asphalt Grid (No Buildings)
-            ctx.strokeStyle = '#101022';
-            ctx.lineWidth = 3;
-            let startX = Math.floor((player.x - canvas.width) / 120) * 120;
+            // Clean Smooth Asphalt Grid
+            ctx.strokeStyle = '#0e0e1c';
+            ctx.lineWidth = 2.5;
+            let startX = Math.floor((player.x - canvas.width) / 140) * 140;
             let endX = startX + canvas.width * 2.5;
-            let startY = Math.floor((player.y - canvas.height) / 120) * 120;
+            let startY = Math.floor((player.y - canvas.height) / 140) * 140;
             let endY = startY + canvas.height * 2.5;
 
-            for (let x = startX; x <= endX; x += 120) {
+            for (let x = startX; x <= endX; x += 140) {
                 ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
             }
-            for (let y = startY; y <= endY; y += 120) {
+            for (let y = startY; y <= endY; y += 140) {
                 ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
             }
 
             skidMarks.forEach(sm => {
-                ctx.fillStyle = 'rgba(1, 1, 3, 0.85)';
-                ctx.fillRect(sm.x - 3, sm.y - 3, 6, 6);
+                ctx.fillStyle = 'rgba(1, 1, 3, 0.9)';
+                ctx.fillRect(sm.x - 2.5, sm.y - 2.5, 5, 5);
                 sm.life--;
             });
             skidMarks = skidMarks.filter(sm => sm.life > 0);
@@ -582,8 +588,8 @@
                 powerups.forEach(p => {
                     ctx.fillStyle = p.type === 'wrench' ? '#00ff66' : (p.type === 'nitro' ? '#ffaa00' : '#ffff00');
                     ctx.shadowColor = ctx.fillStyle;
-                    ctx.shadowBlur = 20;
-                    ctx.fillRect(p.x - 18, p.y - 18, 36, 36);
+                    ctx.shadowBlur = 18;
+                    ctx.fillRect(p.x - 16, p.y - 16, 32, 32);
                     ctx.shadowBlur = 0;
                 });
 
@@ -592,10 +598,10 @@
                     ctx.fillRect(d.x, d.y, d.size, d.size);
                 });
 
-                cops.forEach(cop => drawDetailedCar(cop, false, false));
-                criminals.forEach(c => drawDetailedCar(c, false, true));
+                cops.forEach(cop => drawSupercar(cop, false, false));
+                criminals.forEach(c => drawSupercar(c, false, true));
 
-                drawDetailedCar(player, true, false);
+                drawSupercar(player, true, false);
 
                 floatingTexts.forEach(ft => {
                     ctx.fillStyle = ft.color;
