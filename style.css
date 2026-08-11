@@ -19,21 +19,23 @@ body, html {
 #ui-container {
     position: absolute;
     top: 20px;
-    left: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     gap: 20px;
     z-index: 10;
     pointer-events: none;
 }
 .hud-element {
-    background: rgba(15, 15, 35, 0.85);
+    background: rgba(15, 15, 35, 0.9);
     border: 2px solid #00f3ff;
     color: #00f3ff;
-    padding: 10px 20px;
+    padding: 10px 25px;
     font-size: 18px;
     font-weight: bold;
     box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
-    border-radius: 4px;
+    border-radius: 6px;
+    letter-spacing: 1px;
 }
 #start-screen, #game-over-screen {
     position: absolute;
@@ -41,7 +43,7 @@ body, html {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(5, 5, 12, 0.95);
+    background: rgba(5, 5, 12, 0.96);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -51,10 +53,11 @@ body, html {
     padding: 20px;
 }
 #start-screen h1, #game-over-screen h1 {
-    font-size: 52px;
-    letter-spacing: 4px;
-    text-shadow: 0 0 25px rgba(255, 0, 85, 0.7);
-    margin-bottom: 15px;
+    font-size: 56px;
+    letter-spacing: 6px;
+    color: #ff0055;
+    text-shadow: 0 0 30px rgba(255, 0, 85, 0.8);
+    margin-bottom: 10px;
 }
 #start-screen p, #game-over-screen p {
     color: #a0a0c0;
@@ -65,14 +68,15 @@ body, html {
     background: linear-gradient(135deg, #00f3ff, #ff0055);
     border: none;
     color: #fff;
-    padding: 15px 40px;
-    font-size: 20px;
+    padding: 16px 45px;
+    font-size: 22px;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+    box-shadow: 0 0 25px rgba(0, 243, 255, 0.6);
     transition: transform 0.1s ease;
-    border-radius: 4px;
+    border-radius: 6px;
+    letter-spacing: 2px;
 }
 #start-btn:hover, #restart-btn:hover {
-    transform: scale(1.05);
+    transform: scale(1.06);
 }
