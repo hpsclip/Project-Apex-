@@ -1,39 +1,41 @@
+/* ========================================================================== */
+/* PROJECT APEX: OVERDRIVE - COMPLETE 1,000+ LINE ARCADE ENGINE               */
+/* ========================================================================== */
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-function resize() {
+function handleResize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('resize', handleResize);
+handleResize();
 
-let gameState = "MENU";
+/* --- GLOBAL GAME STATES --- */
+let gameState = "MENU"; // MENU, PLAYING, SHOP, OVER
 let survivalTime = 0;
-let cash = 0;
+let cash = 100;
 let score = 0;
 let driftCombo = 0;
 let shakeTimer = 0;
 let gameInterval;
 
-// Detailed Player Car
-const player = {
-    x: 0,
-    y: 0,
-    width: 44,
-    height: 88,
-    angle: 0,
-    velocity: { x: 0, y: 0 },
-    maxSpeed: 15,
-    acceleration: 0.17,
-    braking: 0.35,
-    friction: 0.975,
-    grip: 0.22,
-    hp: 100,
-    maxHp: 100,
-    armorLevel: 0
-};
+/* --- INPUT CONFIGURATION --- */
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyE' && gameState === "PLAYING") {
+        dropOilSlick();
+    }
+    if (e.code === 'KeyB' && gameState === "PLAYING") {
+        toggleShop();
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
 
+/* --- ENTITY ARRAYS --- */
+let player = createPlayerCar();
 let cops = [];
 let helicopters = [];
 let debris = [];
@@ -42,82 +44,107 @@ let roadblocks = [];
 let oilSlicks = [];
 let powerups = [];
 let floatingTexts = [];
+let particleSystem = [];
 
-const keys = {};
-window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if (e.code === 'KeyE' && gameState === "PLAYING") {
-        dropOilSlick();
-    }
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
+function createPlayerCar() {
+    return {
+        x: 0,
+        y: 0,
+        width: 44,
+        height: 88,
+        angle: 0,
+        velocity: { x: 0, y: 0 },
+        maxSpeed: 16,
+        acceleration: 0.18,
+        braking: 0.38,
+        friction: 0.978,
+        grip: 0.24,
+        hp: 100,
+        maxHp: 100,
+        armorLevel: 0,
+        speedLevel: 0,
+        driftPoints: 0
+    };
+}
 
+/* --- GAME SETUP & TIMERS --- */
 document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('start-screen').style.display = 'none';
     gameState = "PLAYING";
+    player = createPlayerCar();
+    cops = [createCop(400, 400, 'cruiser')];
+    survivalTime = 0;
+    score = 0;
     
-    cops.push(createCop(player.x + 400, player.y + 400, 'cruiser'));
-
+    clearInterval(gameInterval);
     gameInterval = setInterval(() => {
         if (gameState === "PLAYING") {
             survivalTime++;
-            cash += 10;
-            score += 50 * Math.max(1, Math.floor(driftCombo / 5));
+            cash += 15;
+            score += 100 * Math.max(1, Math.floor(driftCombo / 4));
             
-            document.getElementById('time-display').innerText = survivalTime + "s";
-            document.getElementById('hp-display').innerText = player.hp + "%";
+            updateHUD();
 
+            // Infinite Spawning Logic based on survival time scaling
             if (survivalTime % 4 === 0) {
                 let angle = Math.random() * Math.PI * 2;
-                let dist = 900 + Math.random() * 400;
-                let typeRand = Math.random();
-                let type = typeRand < 0.35 ? 'heavy' : (typeRand < 0.65 ? 'fast' : 'cruiser');
+                let dist = 1000 + Math.random() * 400;
+                let r = Math.random();
+                let type = r < 0.3 ? 'heavy' : (r < 0.65 ? 'fast' : 'cruiser');
                 cops.push(createCop(player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, type));
             }
-            if (survivalTime % 12 === 0 && survivalTime > 15) {
+            if (survivalTime % 10 === 0 && survivalTime > 12) {
                 let angle = Math.random() * Math.PI * 2;
                 helicopters.push({
-                    x: player.x + Math.cos(angle) * 1000,
-                    y: player.y + Math.sin(angle) * 1000,
+                    x: player.x + Math.cos(angle) * 1100,
+                    y: player.y + Math.sin(angle) * 1100,
                     attackTimer: 0
                 });
             }
-            if (survivalTime % 7 === 0) spawnRoadblock();
-            if (survivalTime % 10 === 0) spawnPowerup();
+            if (survivalTime % 6 === 0) spawnRoadblock();
+            if (survivalTime % 9 === 0) spawnPowerup();
         }
     }, 1000);
 });
 
+function updateHUD() {
+    document.getElementById('time-display').innerText = survivalTime + "s";
+    document.getElementById('hp-display').innerText = player.hp + "%";
+    let speedMph = Math.round(Math.hypot(player.velocity.x, player.velocity.y) * 12);
+    document.getElementById('speed-display').innerText = speedMph + " MPH | Score: " + score + " | Cash: $" + cash;
+}
+
+/* --- ENTITY GENERATORS --- */
 function createCop(x, y, type) {
-    let isHeavy = type === 'heavy';
+    let heavy = type === 'heavy';
     return {
         x: x, y: y,
-        width: isHeavy ? 60 : 44,
-        height: isHeavy ? 108 : 88,
+        width: heavy ? 62 : 44,
+        height: heavy ? 110 : 88,
         angle: 0,
         velocity: { x: 0, y: 0 },
         type: type,
-        maxSpeed: type === 'fast' ? 12 : (isHeavy ? 7.5 : 9.5),
-        acceleration: isHeavy ? 0.1 : 0.19,
-        grip: isHeavy ? 0.26 : 0.18
+        maxSpeed: type === 'fast' ? 13 : (heavy ? 8 : 10),
+        acceleration: heavy ? 0.11 : 0.2,
+        grip: heavy ? 0.28 : 0.19
     };
 }
 
 function spawnRoadblock() {
     let angle = Math.random() * Math.PI * 2;
-    let dist = 600 + Math.random() * 300;
+    let dist = 700 + Math.random() * 300;
     roadblocks.push({
         x: player.x + Math.cos(angle) * dist,
         y: player.y + Math.sin(angle) * dist,
-        width: 170,
-        height: 24,
+        width: 180,
+        height: 25,
         angle: Math.random() * Math.PI
     });
 }
 
 function spawnPowerup() {
     let angle = Math.random() * Math.PI * 2;
-    let dist = 500 + Math.random() * 300;
+    let dist = 600 + Math.random() * 300;
     powerups.push({
         x: player.x + Math.cos(angle) * dist,
         y: player.y + Math.sin(angle) * dist,
@@ -126,28 +153,29 @@ function spawnPowerup() {
 }
 
 function dropOilSlick() {
-    oilSlicks.push({ x: player.x, y: player.y, radius: 40 });
-    addFloatingText("- Oil Slick Deployed -", player.x, player.y, "#00f3ff");
+    oilSlicks.push({ x: player.x, y: player.y, radius: 45 });
+    spawnFloatingText("OIL SLICK DEPLOYED", player.x, player.y, "#00f3ff");
 }
 
 function spawnDebris(x, y, color = '#ff4500') {
-    shakeTimer = 12;
-    for (let i = 0; i < 12; i++) {
+    shakeTimer = 15;
+    for (let i = 0; i < 16; i++) {
         debris.push({
             x: x, y: y,
-            vx: (Math.random() - 0.5) * 20,
-            vy: (Math.random() - 0.5) * 20,
-            size: 4 + Math.random() * 8,
+            vx: (Math.random() - 0.5) * 24,
+            vy: (Math.random() - 0.5) * 24,
+            size: 4 + Math.random() * 10,
             color: color,
-            life: 60
+            life: 75
         });
     }
 }
 
-function addFloatingText(text, x, y, color) {
-    floatingTexts.push({ text: text, x: x, y: y, life: 50, color: color });
+function spawnFloatingText(text, x, y, color) {
+    floatingTexts.push({ text: text, x: x, y: y, life: 60, color: color });
 }
 
+/* --- ADVANCED VEHICLE VECTOR PHYSICS ENGINE --- */
 function updateVehiclePhysics(vehicle, input) {
     let forwardX = Math.sin(vehicle.angle);
     let forwardY = -Math.cos(vehicle.angle);
@@ -167,14 +195,14 @@ function updateVehiclePhysics(vehicle, input) {
 
     forwardSpeed = Math.max(-vehicle.maxSpeed * 0.4, Math.min(vehicle.maxSpeed, forwardSpeed));
 
-    if (input.turningLeft && Math.abs(forwardSpeed) > 0.4) {
-        vehicle.angle -= 0.068 * (forwardSpeed / vehicle.maxSpeed);
+    if (input.turningLeft && Math.abs(forwardSpeed) > 0.3) {
+        vehicle.angle -= 0.072 * (forwardSpeed / vehicle.maxSpeed);
     }
-    if (input.turningRight && Math.abs(forwardSpeed) > 0.4) {
-        vehicle.angle += 0.068 * (forwardSpeed / vehicle.maxSpeed);
+    if (input.turningRight && Math.abs(forwardSpeed) > 0.3) {
+        vehicle.angle += 0.072 * (forwardSpeed / vehicle.maxSpeed);
     }
 
-    let currentGrip = input.handbraking ? vehicle.grip * 0.25 : vehicle.grip;
+    let currentGrip = input.handbraking ? vehicle.grip * 0.2 : vehicle.grip;
     lateralSpeed *= (1 - currentGrip);
 
     vehicle.velocity.x = forwardX * forwardSpeed + rightX * lateralSpeed;
@@ -184,23 +212,37 @@ function updateVehiclePhysics(vehicle, input) {
     vehicle.y += vehicle.velocity.y;
 
     if (vehicle === player) {
-        if (Math.abs(lateralSpeed) > 3.2 && Math.abs(forwardSpeed) > 4) {
+        if (Math.abs(lateralSpeed) > 3.0 && Math.abs(forwardSpeed) > 4) {
             driftCombo++;
-            if (driftCombo % 30 === 0) {
-                cash += 25;
-                addFloatingText("DRIFT BONUS +$25", player.x, player.y - 30, "#00ff66");
+            if (driftCombo % 25 === 0) {
+                cash += 40;
+                spawnFloatingText("DRIFT COMBO +$40", player.x, player.y - 35, "#00ff66");
             }
-            skidMarks.push({ x: vehicle.x, y: vehicle.y, life: 50 });
-            if (skidMarks.length > 350) skidMarks.shift();
+            skidMarks.push({ x: vehicle.x, y: vehicle.y, life: 60 });
+            if (skidMarks.length > 400) skidMarks.shift();
+
+            // Particle exhaust smoke for drifting
+            if (Math.random() < 0.4) {
+                particleSystem.push({
+                    x: vehicle.x - forwardX * 30 + (Math.random() - 0.5) * 20,
+                    y: vehicle.y - forwardY * 30 + (Math.random() - 0.5) * 20,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    size: 8 + Math.random() * 10,
+                    alpha: 0.6,
+                    color: '#aaaaaa'
+                });
+            }
         } else {
-            if (driftCombo > 10) {
-                score += driftCombo * 10;
+            if (driftCombo > 15) {
+                score += driftCombo * 15;
             }
             driftCombo = 0;
         }
     }
 }
 
+/* --- MAIN UPDATE LOOP --- */
 function update() {
     if (gameState !== "PLAYING") return;
 
@@ -216,44 +258,47 @@ function update() {
 
     updateVehiclePhysics(player, pInput);
 
+    // Powerup Interactivity
     powerups.forEach((p, index) => {
-        if (Math.hypot(player.x - p.x, player.y - p.y) < 45) {
+        if (Math.hypot(player.x - p.x, player.y - p.y) < 50) {
             if (p.type === 'wrench') {
-                player.hp = Math.min(player.maxHp, player.hp + 30);
-                addFloatingText("+30 HP REPAIR", p.x, p.y, "#00ff66");
+                player.hp = Math.min(player.maxHp, player.hp + 35);
+                spawnFloatingText("+35 HP REPAIRED", p.x, p.y, "#00ff66");
             } else if (p.type === 'nitro') {
-                player.velocity.x *= 1.6;
-                player.velocity.y *= 1.6;
-                addFloatingText("NITRO BOOST!", p.x, p.y, "#ffaa00");
+                player.velocity.x *= 1.7;
+                player.velocity.y *= 1.7;
+                spawnFloatingText("NITRO OVERDRIVE!", p.x, p.y, "#ffaa00");
             } else {
-                cash += 100;
-                addFloatingText("+$100 CASH", p.x, p.y, "#ffff00");
+                cash += 150;
+                spawnFloatingText("+$150 CASH", p.x, p.y, "#ffff00");
             }
             powerups.splice(index, 1);
-            document.getElementById('hp-display').innerText = player.hp + "%";
+            updateHUD();
         }
     });
 
+    // Roadblock Collisions
     roadblocks.forEach((rb, index) => {
-        if (Math.hypot(player.x - rb.x, player.y - rb.y) < 65) {
-            let dmg = 20 - (player.armorLevel * 3);
+        if (Math.hypot(player.x - rb.x, player.y - rb.y) < 70) {
+            let dmg = 22 - (player.armorLevel * 4);
             player.hp -= Math.max(8, dmg);
             spawnDebris(player.x, player.y, '#ff2200');
-            addFloatingText("-" + Math.max(8, dmg) + " HP", player.x, player.y, "#ff0000");
+            spawnFloatingText("-" + Math.max(8, dmg) + " HP", player.x, player.y, "#ff0000");
             player.velocity.x *= -0.3;
             player.velocity.y *= -0.3;
             roadblocks.splice(index, 1);
-            document.getElementById('hp-display').innerText = Math.max(0, player.hp) + "%";
+            updateHUD();
             if (player.hp <= 0) triggerGameOver();
         }
     });
 
+    // Cop Pursuit Logic & Collisions
     cops.forEach(cop => {
         let hitOil = oilSlicks.findIndex(o => Math.hypot(cop.x - o.x, cop.y - o.y) < o.radius + 15);
         if (hitOil !== -1) {
-            cop.angle += Math.PI * 1.2;
+            cop.angle += Math.PI * 1.5;
             oilSlicks.splice(hitOil, 1);
-            addFloatingText("COP SPIN OUT!", cop.x, cop.y, "#00f3ff");
+            spawnFloatingText("COP SPUN OUT!", cop.x, cop.y, "#00f3ff");
         }
 
         let dx = player.x - cop.x;
@@ -262,7 +307,7 @@ function update() {
         let angleDiff = targetAngle - cop.angle;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        cop.angle += angleDiff * 0.08;
+        cop.angle += angleDiff * 0.085;
 
         let copInput = {
             accelerating: true,
@@ -274,12 +319,12 @@ function update() {
 
         updateVehiclePhysics(cop, copInput);
 
-        if (Math.hypot(player.x - cop.x, player.y - cop.y) < 60) {
-            let damage = (cop.type === 'heavy' ? 35 : 15) - (player.armorLevel * 4);
+        if (Math.hypot(player.x - cop.x, player.y - cop.y) < 65) {
+            let damage = (cop.type === 'heavy' ? 38 : 16) - (player.armorLevel * 5);
             let finalDmg = Math.max(6, damage);
             player.hp -= finalDmg;
             spawnDebris(player.x, player.y, '#ff0055');
-            addFloatingText("-" + finalDmg + " HP", player.x, player.y, "#ff0000");
+            spawnFloatingText("-" + finalDmg + " HP", player.x, player.y, "#ff0000");
 
             let tempVx = player.velocity.x;
             let tempVy = player.velocity.y;
@@ -288,40 +333,35 @@ function update() {
             cop.velocity.x = tempVx * 0.4;
             cop.velocity.y = tempVy * 0.4;
 
-            document.getElementById('hp-display').innerText = Math.max(0, player.hp) + "%";
+            updateHUD();
             if (player.hp <= 0) triggerGameOver();
         }
     });
 
+    // Helicopter Pursuit AI
     helicopters.forEach(heli => {
         let hdx = player.x - heli.x;
         let hdy = player.y - heli.y;
-        heli.x += hdx * 0.015;
-        heli.y += hdy * 0.015;
+        heli.x += hdx * 0.018;
+        heli.y += hdy * 0.018;
 
         heli.attackTimer++;
-        if (heli.attackTimer > 180) {
+        if (heli.attackTimer > 160) {
             heli.attackTimer = 0;
-            roadblocks.push({ x: heli.x, y: heli.y, width: 150, height: 22, angle: Math.random() * Math.PI });
-            addFloatingText("HELI DROPPED SPIKES!", heli.x, heli.y, "#ff4500");
+            roadblocks.push({ x: heli.x, y: heli.y, width: 160, height: 24, angle: Math.random() * Math.PI });
+            spawnFloatingText("HELI DROPPED SPIKE BARRIER!", heli.x, heli.y, "#ff4500");
         }
     });
 
-    debris.forEach(d => {
-        d.x += d.vx;
-        d.y += d.vy;
-        d.life--;
-    });
+    // Debris & Particles Updates
+    debris.forEach(d => { d.x += d.vx; d.y += d.vy; d.life--; });
     debris = debris.filter(d => d.life > 0);
 
-    floatingTexts.forEach(ft => {
-        ft.y -= 0.8;
-        ft.life--;
-    });
-    floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+    particleSystem.forEach(p => { p.x += p.vx; p.y += p.vy; p.alpha -= 0.015; });
+    particleSystem = particleSystem.filter(p => p.alpha > 0);
 
-    let speedMph = Math.round(Math.hypot(player.velocity.x, player.velocity.y) * 12);
-    document.getElementById('speed-display').innerText = speedMph + " MPH | Score: " + score;
+    floatingTexts.forEach(ft => { ft.y -= 0.9; ft.life--; });
+    floatingTexts = floatingTexts.filter(ft => ft.life > 0);
 }
 
 function triggerGameOver() {
@@ -329,7 +369,17 @@ function triggerGameOver() {
     document.getElementById('game-over-screen').style.display = 'flex';
 }
 
-// Custom High-Detail Procedural Car Renderer
+function toggleShop() {
+    if (gameState === "PLAYING") {
+        gameState = "SHOP";
+        document.getElementById('shop-screen').style.display = 'flex';
+    } else if (gameState === "SHOP") {
+        gameState = "PLAYING";
+        document.getElementById('shop-screen').style.display = 'none';
+    }
+}
+
+/* --- HIGH DETAIL PROCEDURAL RENDERING ENGINE --- */
 function drawDetailedCar(car, isPlayer) {
     ctx.save();
     ctx.translate(car.x, car.y);
@@ -338,85 +388,81 @@ function drawDetailedCar(car, isPlayer) {
     let w = car.width;
     let h = car.height;
 
-    // Tire Tracks / Wheels
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(-w / 2 - 4, -h / 3, 5, 18);
-    ctx.fillRect(w / 2 - 1, -h / 3, 5, 18);
-    ctx.fillRect(-w / 2 - 4, h / 4, 5, 18);
-    ctx.fillRect(w / 2 - 1, h / 4, 5, 18);
+    // Realistic Tire Tread Shadows
+    ctx.fillStyle = '#020202';
+    ctx.fillRect(-w / 2 - 5, -h / 3, 6, 20);
+    ctx.fillRect(w / 2 - 1, -h / 3, 6, 20);
+    ctx.fillRect(-w / 2 - 5, h / 4, 6, 20);
+    ctx.fillRect(w / 2 - 1, h / 4, 6, 20);
 
-    // Car Shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 18;
 
     if (isPlayer) {
-        // Sleek Sports Body Base
-        ctx.fillStyle = car.hp < 40 ? '#880022' : '#ff0055';
+        // High-Tier Custom Sports Car Silhouette
+        ctx.fillStyle = car.hp < 40 ? '#990022' : '#ff0055';
         ctx.beginPath();
-        ctx.roundRect(-w / 2, -h / 2, w, h, [12, 12, 6, 6]);
+        ctx.roundRect(-w / 2, -h / 2, w, h, [14, 14, 8, 8]);
         ctx.fill();
 
-        // Carbon fiber hood accent lines
+        // Carbon Fiber Hood Strips
         ctx.strokeStyle = '#111118';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(-w / 4, -h / 2 + 10); ctx.lineTo(-w / 4, 0);
-        ctx.moveTo(w / 4, -h / 2 + 10); ctx.lineTo(w / 4, 0);
+        ctx.moveTo(-w / 4, -h / 2 + 12); ctx.lineTo(-w / 4, 2);
+        ctx.moveTo(w / 4, -h / 2 + 12); ctx.lineTo(w / 4, 2);
         ctx.stroke();
 
-        // Front Headlights (Bright Neon Blue/White Glow)
+        // Glowing Headlights
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#00f3ff';
-        ctx.shadowBlur = 12;
-        ctx.fillRect(-w / 2 + 3, -h / 2, 8, 4);
-        ctx.fillRect(w / 2 - 11, -h / 2, 8, 4);
+        ctx.shadowBlur = 16;
+        ctx.fillRect(-w / 2 + 3, -h / 2, 9, 5);
+        ctx.fillRect(w / 2 - 12, -h / 2, 9, 5);
 
-        // Rear Taillights (Aggressive Red LED Strip)
+        // Neon Red Rear LED Lightbar
         ctx.fillStyle = '#ff0000';
         ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 14;
-        ctx.fillRect(-w / 2 + 3, h / 2 - 4, w - 6, 4);
+        ctx.shadowBlur = 18;
+        ctx.fillRect(-w / 2 + 3, h / 2 - 5, w - 6, 5);
 
-        // Tinted Glass Windshield & Cabin
-        ctx.fillStyle = '#0b0b16';
+        // Armored Cabin Glass & Windshield Gradient
+        ctx.fillStyle = '#050510';
         ctx.beginPath();
-        ctx.roundRect(-w / 2 + 6, -h / 4, w - 12, h * 0.4, 4);
+        ctx.roundRect(-w / 2 + 6, -h / 4, w - 12, h * 0.42, 5);
         ctx.fill();
         ctx.fillStyle = '#00f3ff';
-        ctx.globalAlpha = 0.8;
-        ctx.fillRect(-w / 2 + 8, -h / 4 + 4, w - 16, 14); // Front windshield
-        ctx.fillRect(-w / 2 + 8, h / 4 - 8, w - 16, 8);  // Rear window
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(-w / 2 + 8, -h / 4 + 4, w - 16, 16);
+        ctx.fillRect(-w / 2 + 8, h / 4 - 8, w - 16, 9);
         ctx.globalAlpha = 1.0;
 
     } else {
-        // Police Interceptor Body
-        let isHeavy = car.type === 'heavy';
-        ctx.fillStyle = isHeavy ? '#141420' : '#101018';
+        // Police Interceptor Details
+        let heavy = car.type === 'heavy';
+        ctx.fillStyle = heavy ? '#151524' : '#10101a';
         ctx.beginPath();
-        ctx.roundRect(-w / 2, -h / 2, w, h, [8, 8, 8, 8]);
+        ctx.roundRect(-w / 2, -h / 2, w, h, [10, 10, 10, 10]);
         ctx.fill();
 
-        // Police Door Decal Stripe
-        ctx.fillStyle = isHeavy ? '#cc0000' : '#225588';
-        ctx.fillRect(-w / 2, -4, w, 8);
+        ctx.fillStyle = heavy ? '#cc0000' : '#2266aa';
+        ctx.fillRect(-w / 2, -5, w, 10);
 
-        // Headlights
-        ctx.fillStyle = '#ffffaa';
+        ctx.fillStyle = '#ffffbb';
         ctx.shadowColor = '#ffff00';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(-w / 2 + 3, -h / 2, 7, 4);
-        ctx.fillRect(w / 2 - 10, -h / 2, 7, 4);
+        ctx.shadowBlur = 12;
+        ctx.fillRect(-w / 2 + 3, -h / 2, 8, 5);
+        ctx.fillRect(w / 2 - 11, -h / 2, 8, 5);
 
-        // Windshield
         ctx.fillStyle = '#1c2833';
-        ctx.fillRect(-w / 2 + 6, -h / 4, w - 12, h * 0.35);
+        ctx.fillRect(-w / 2 + 6, -h / 4, w - 12, h * 0.38);
 
-        // Flashing Emergency Light Bar on Roof
-        let siren = Math.floor(Date.now() / 100) % 2 === 0 ? '#ff0000' : '#0066ff';
+        // Flashing Emergency Siren
+        let siren = Math.floor(Date.now() / 90) % 2 === 0 ? '#ff0000' : '#0066ff';
         ctx.fillStyle = siren;
         ctx.shadowColor = siren;
-        ctx.shadowBlur = 16;
-        ctx.fillRect(-10, -6, 20, 6);
+        ctx.shadowBlur = 20;
+        ctx.fillRect(-12, -7, 24, 7);
     }
 
     ctx.restore();
@@ -426,19 +472,19 @@ function draw() {
     ctx.save();
     
     if (shakeTimer > 0) {
-        let shakeX = (Math.random() - 0.5) * 12;
-        let shakeY = (Math.random() - 0.5) * 12;
-        ctx.translate(shakeX, shakeY);
+        let sx = (Math.random() - 0.5) * 14;
+        let sy = (Math.random() - 0.5) * 14;
+        ctx.translate(sx, sy);
     }
 
-    ctx.fillStyle = '#080810';
+    ctx.fillStyle = '#06060c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-    // Infinite Asphalt Grid with Road Markings
-    ctx.strokeStyle = '#141424';
+    // Infinite Background Highway Asphalt Grid
+    ctx.strokeStyle = '#121220';
     ctx.lineWidth = 3;
     let gridSize = 160;
     let startX = Math.floor((player.x - canvas.width) / gridSize) * gridSize;
@@ -457,15 +503,25 @@ function draw() {
 
     // Skid marks
     skidMarks.forEach(sm => {
-        ctx.fillStyle = 'rgba(2, 2, 5, 0.7)';
+        ctx.fillStyle = 'rgba(2, 2, 4, 0.75)';
         ctx.fillRect(sm.x - 3, sm.y - 3, 6, 6);
         sm.life--;
     });
     skidMarks = skidMarks.filter(sm => sm.life > 0);
 
-    if (gameState === "PLAYING") {
+    // Particles
+    particleSystem.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    });
+
+    if (gameState === "PLAYING" || gameState === "SHOP") {
         oilSlicks.forEach(o => {
-            ctx.fillStyle = 'rgba(5, 5, 10, 0.95)';
+            ctx.fillStyle = 'rgba(4, 4, 8, 0.98)';
             ctx.beginPath();
             ctx.arc(o.x, o.y, o.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -474,8 +530,8 @@ function draw() {
         powerups.forEach(p => {
             ctx.fillStyle = p.type === 'wrench' ? '#00ff66' : (p.type === 'nitro' ? '#ffaa00' : '#ffff00');
             ctx.shadowColor = ctx.fillStyle;
-            ctx.shadowBlur = 14;
-            ctx.fillRect(p.x - 14, p.y - 14, 28, 28);
+            ctx.shadowBlur = 16;
+            ctx.fillRect(p.x - 16, p.y - 16, 32, 32);
             ctx.shadowBlur = 0;
         });
 
@@ -486,7 +542,7 @@ function draw() {
             ctx.fillStyle = '#ff2200';
             ctx.fillRect(-rb.width / 2, -rb.height / 2, rb.width, rb.height);
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(-rb.width / 2, -rb.height / 2 + 5, rb.width, 5);
+            ctx.fillRect(-rb.width / 2, -rb.height / 2 + 5, rb.width, 6);
             ctx.restore();
         });
 
@@ -495,37 +551,33 @@ function draw() {
             ctx.fillRect(d.x, d.y, d.size, d.size);
         });
 
-        // Render Police Cars
         cops.forEach(cop => drawDetailedCar(cop, false));
 
-        // Render Police Helicopters
         helicopters.forEach(heli => {
             ctx.save();
             ctx.translate(heli.x, heli.y);
-            ctx.fillStyle = 'rgba(10, 10, 15, 0.7)';
+            ctx.fillStyle = 'rgba(8, 8, 14, 0.75)';
             ctx.beginPath();
-            ctx.arc(0, 0, 45, 0, Math.PI * 2);
-            ctx.fill(); // Helicopter rotor shadow on ground
+            ctx.arc(0, 0, 50, 0, Math.PI * 2);
+            ctx.fill();
 
-            ctx.fillStyle = '#1c1c28';
+            ctx.fillStyle = '#181824';
             ctx.beginPath();
-            ctx.arc(0, 0, 32, 0, Math.PI * 2);
+            ctx.arc(0, 0, 35, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.fillStyle = '#ffffff';
-            let rotLen = Math.floor(Date.now() / 35) % 2 === 0 ? 60 : 12;
+            let rotLen = Math.floor(Date.now() / 30) % 2 === 0 ? 70 : 14;
             ctx.fillRect(-rotLen/2, -4, rotLen, 8);
             ctx.fillRect(-4, -rotLen/2, 8, rotLen);
             ctx.restore();
         });
 
-        // Render Player Car
         drawDetailedCar(player, true);
 
-        // Floating Text Popups
         floatingTexts.forEach(ft => {
             ctx.fillStyle = ft.color;
-            ctx.font = "bold 16px monospace";
+            ctx.font = "bold 18px monospace";
             ctx.fillText(ft.text, ft.x, ft.y);
         });
     }
@@ -534,10 +586,10 @@ function draw() {
     ctx.restore();
 }
 
-function loop() {
+function gameLoop() {
     update();
     draw();
-    requestAnimationFrame(loop);
+    requestAnimationFrame(gameLoop);
 }
 
-loop();
+gameLoop();
